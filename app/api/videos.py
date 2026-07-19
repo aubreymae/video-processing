@@ -2,8 +2,11 @@
 
 from app.api import bp
 import os
+import sqlite3
 from flask import Flask, flash, request, redirect, url_for, current_app
 from werkzeug.utils import secure_filename
+
+from app.queue_store import queue
 
 ALLOWED_EXTENSIONS = {"mp4", "mov"}
 
@@ -26,7 +29,23 @@ def create_video():
         return {"error": "No selected file provided"}, 400
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
+
         file.save(os.path.join(current_app.config["UPLOAD_FOLDER"], filename))
-        return {"message": "Upload successful", "filename": filename}, 202
+
+        # Connect to db
+        with sqlite3.connect("app/upload-db.db") as connection:
+            cursor = connection.cursor()
+            status = "Pending"
+            raw_size = request.form.get("target_size_mb")
+            target_size_mb = float(raw_size) if raw_size else 25.0
+            insert_video_query = f"INSERT INTO Videos (filename, status, target_size_mb) VALUES (?, ?, ?);"
+            cursor.execute(insert_video_query, (filename, status, target_size_mb))
+            connection.commit()
+            row_id = cursor.lastrowid
+
+        # Add video_id into queue
+        queue.append(row_id)
+
+        return {"message": "Upload successful", "filename": filename, "status": status, "row_id": row_id}, 202
     else:
         return {"error": "File type not allowed"}, 400
