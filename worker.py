@@ -1,24 +1,29 @@
 # Import db model, check queue
 import sqlite3
 import time
-from app.queue_store import queue
 
 print("Worker is acting and waiting for jobs...")
 
 while True:
-    if not queue:
-        time.sleep(1)
-        continue
-
-    # pop off ID in list
-    curr_video_id = queue.pop(0)
-
+    pending_label = "Pending"
+    processing_label = "Processing"
     with sqlite3.connect("app/upload-db.db") as connection:
         cursor = connection.cursor()
-        select_all_query = "SELECT * FROM Videos WHERE id = ?"
+        select_all_query = "SELECT * FROM Videos WHERE status = ? ORDER BY id ASC LIMIT 1"
 
-        cursor.execute(select_all_query, (curr_video_id,))
+        cursor.execute(select_all_query, (pending_label,))
         
         video_record = cursor.fetchone()
 
-        print((f"Currently read Row ID: ", {video_record}))
+        if video_record is None:
+            time.sleep(1)
+            continue
+
+        video_id, filename, status, target_size_mb = video_record
+
+        update_to_processing_query = "UPDATE Videos SET status = ? WHERE id = ?"
+
+        cursor.execute(update_to_processing_query, (processing_label, video_id))
+        connection.commit()
+
+        print("Worker successfully retrieved and processed job.")

@@ -6,8 +6,6 @@ import sqlite3
 from flask import Flask, flash, request, redirect, url_for, current_app
 from werkzeug.utils import secure_filename
 
-from app.queue_store import queue
-
 ALLOWED_EXTENSIONS = {"mp4", "mov"}
 
 def allowed_file(filename):
@@ -42,9 +40,6 @@ def create_video():
             cursor.execute(insert_video_query, (filename, status, target_size_mb))
             connection.commit()
             row_id = cursor.lastrowid
-
-        # Add video_id into queue
-        queue.append(row_id)
 
         return {"message": "Upload successful", "filename": filename, "status": status, "row_id": row_id}, 202
     else:
