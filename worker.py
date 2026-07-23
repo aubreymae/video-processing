@@ -4,15 +4,18 @@ import time
 
 print("3 --- WORKER STARTING; WAITING FOR JOBS")
 
+pending_label = "Pending"
+processing_label = "Processing"
+completed_label = "Completed"
+failed_label = "Failed"
+
 while True:
-    pending_label = "Pending"
-    processing_label = "Processing"
     with sqlite3.connect("app/upload-db.db") as connection:
         cursor = connection.cursor()
-        select_all_query = "SELECT * FROM Videos WHERE status = ? ORDER BY id ASC LIMIT 1"
 
-        cursor.execute(select_all_query, (pending_label,))
-        
+        # Get pending job
+        select_query = "SELECT * FROM Videos WHERE status = ? ORDER BY id ASC LIMIT 1"
+        cursor.execute(select_query, (pending_label, ))
         video_record = cursor.fetchone()
 
         if video_record is None:
@@ -21,9 +24,21 @@ while True:
 
         video_id, filename, status, target_size_mb = video_record
 
-        update_to_processing_query = "UPDATE Videos SET status = ? WHERE id = ?"
-
-        cursor.execute(update_to_processing_query, (processing_label, video_id))
+        # Transition to processing
+        update_status_query = "UPDATE Videos SET status = ? WHERE id = ?"
+        cursor.execute(update_status_query, (processing_label, video_id))
         connection.commit()
+        print(f"--- WORKER STARTED JOB {video_id} ---")
 
-        print("--- WORKER ADDED JOB TO PROCESSING ---")
+        try:
+            time.sleep(5)
+
+            # Transition to completed
+            cursor.execute(update_status_query, (completed_label, video_id))
+            connection.commit()
+            print(f"--- WORKER COMPLETED JOB {video_id} ---")
+        except Exception as e:
+            # Transition to failed if work crashes
+            cursor.execute(update_status_query, (failed_label, video_id))
+            connection.commit()
+            print(f"--- WORKER FAILED JOB {video_id}: {e} ---")
