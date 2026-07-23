@@ -2,7 +2,7 @@
 import sqlite3
 import time
 
-print("Worker is acting and waiting for jobs...")
+print("3 --- WORKER STARTING; WAITING FOR JOBS")
 
 while True:
     pending_label = "Pending"
@@ -26,4 +26,4 @@ while True:
         cursor.execute(update_to_processing_query, (processing_label, video_id))
         connection.commit()
 
-        print("Worker successfully retrieved and processed job.")
+        print("--- WORKER ADDED JOB TO PROCESSING ---")

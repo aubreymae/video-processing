@@ -14,7 +14,17 @@ def allowed_file(filename):
 
 @bp.route("/videos/<int:id>", methods=["GET"])
 def get_video(id):
-    pass
+    with sqlite3.connect("app/upload-db.db") as connection:
+        cursor = connection.cursor()
+        get_video_by_id_query = f"SELECT status FROM Videos WHERE id = ?;"
+        cursor.execute(get_video_by_id_query, (id,))
+        record = cursor.fetchone()
+
+        if record is None:
+            return {"error": "ID does not exist"}, 404
+        else:
+            print("--- GRABBED JOB STATUS ---")
+            return {"id": id, "status": record[0]}, 200
 
 @bp.route("/videos", methods=["POST"])
 def create_video():
@@ -40,6 +50,7 @@ def create_video():
             cursor.execute(insert_video_query, (filename, status, target_size_mb))
             connection.commit()
             row_id = cursor.lastrowid
+            print("--- PENDING ITEM UPLOADED TO DATABASE ---")
 
         return {"message": "Upload successful", "filename": filename, "status": status, "row_id": row_id}, 202
     else:

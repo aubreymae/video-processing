@@ -11,4 +11,6 @@ def create_app():
 
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    print("--- FLASK SERVER STARTED ---")
+
     return app
