@@ -10,6 +10,14 @@ processing_label = "Processing"
 completed_label = "Completed"
 failed_label = "Failed"
 
+def safe_remove(file_path):
+    try:
+        if os.path.exists(file_path):
+            os.remove(uploads_path)
+            print(f"--- DELETED INPUT FILE {filename} ---")
+    except Exception as e:
+        print(f"Cannot delete input file; file is missing.")
+
 while True:
     with sqlite3.connect("app/upload-db.db") as connection:
         cursor = connection.cursor()
@@ -36,7 +44,7 @@ while True:
             output_file_path = f"app/processed/"
 
             uploads_path = os.path.join(input_file_path, filename)
-            processed_path = os.path.join(output_file_path, f"compressed_{video_id}.mov")
+            processed_path = os.path.join(output_file_path, f"compressed_{video_id}{os.path.splitext(filename)[1]}")
 
             if os.path.exists(uploads_path) is False:
                 raise Exception("Input file path cannot find original video.")
@@ -55,8 +63,13 @@ while True:
             cursor.execute(update_status_query, (completed_label, video_id))
             connection.commit()
             print(f"--- WORKER COMPLETED JOB {video_id} ---")
+
+            safe_remove(uploads_path)
+
         except Exception as e:
             # Transition to failed if work crashes
             cursor.execute(update_status_query, (failed_label, video_id))
             connection.commit()
             print(f"--- WORKER FAILED JOB {video_id}: {e} ---")
+
+            safe_remove(processed_path)
